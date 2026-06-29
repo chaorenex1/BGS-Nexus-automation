@@ -30,14 +30,20 @@ Browser automation for Nexus Mods via Chrome DevTools Protocol — human-like br
 
 ## Installation
 
-### As a Hermes Agent Skill
+### Let your AI agent install this skill
+
+When your Hermes Agent encounters a task involving Nexus Mods — browsing mods, tracking, endorsing, downloading, or managing your modding workflow — tell it:
+
+> Install the BGS-Nexus-automation skill from GitHub:
+> `https://raw.githubusercontent.com/chaorenex1/BGS-Nexus-automation/master/SKILL.md`
+
+The agent will run the equivalent of:
 
 ```bash
-# Install directly from GitHub
 hermes skills install https://raw.githubusercontent.com/chaorenex1/BGS-Nexus-automation/master/SKILL.md
 ```
 
-The skill registers as `BGS-Nexus-automation` and auto-loads when Hermes Agent needs Nexus Mods browser automation.
+Once installed, the skill auto-loads whenever you ask the agent to interact with Nexus Mods. No manual configuration needed — the skill knows how to launch Chrome, connect via CDP, and prompt you for login.
 
 ### Manual / Standalone
 
