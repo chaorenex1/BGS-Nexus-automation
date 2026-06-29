@@ -1,0 +1,35 @@
+{
+  "name": "bgs-nexus-automation",
+  "version": "1.0.0",
+  "description": "Nexus Mods automation using @puppeteer/browsers",
+  "main": "scripts/nexus-automation.js",
+  "scripts": {
+    "init": "node scripts/init-browser.js",
+    "trending": "node scripts/nexus-automation.js trending",
+    "search": "node scripts/nexus-automation.js search",
+    "details": "node scripts/nexus-automation.js details",
+    "track": "node scripts/nexus-automation.js track",
+    "endorse": "node scripts/nexus-automation.js endorse",
+    "vote": "node scripts/nexus-automation.js vote",
+    "tags-gallery": "node scripts/nexus-automation.js tags-gallery",
+    "description": "node scripts/nexus-automation.js description",
+    "files": "node scripts/nexus-automation.js files",
+    "posts": "node scripts/nexus-automation.js posts",
+    "bugs": "node scripts/nexus-automation.js bugs",
+    "download": "node scripts/nexus-automation.js download",
+    "tracking": "node scripts/nexus-automation.js tracking",
+    "history": "node scripts/nexus-automation.js history",
+    "api-keys": "node scripts/nexus-automation.js api-keys"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
+  "keywords": [
+    "nexus",
+    "mods",
+    "automation",
+    "puppeteer"
+  ],
+  "author": "Hermes Agent",
+  "license": "MIT"
+}

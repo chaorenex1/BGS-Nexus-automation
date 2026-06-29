@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Runtime artifacts
+ws-endpoint.txt
+browser.pid
+browser-cache/
+browser-info.json
+chrome-profile/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
