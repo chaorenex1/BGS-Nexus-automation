@@ -1,7 +1,7 @@
 ---
 title: BGS-Nexus-automation
 name: BGS-Nexus-automation
-version: 1.6.0
+version: 1.7.0
 category: browser-automation
 author: Hermes Agent
 description: 在 @puppeteer/browsers 创建的浏览器内像人类用户浏览 Nexus Mods 网站（Skyrim Special Edition），支持搜索、追踪、点赞、下载等完整操作流。
