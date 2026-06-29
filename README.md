@@ -28,6 +28,25 @@ Browser automation for Nexus Mods via Chrome DevTools Protocol — human-like br
 - Windows 10
 - Nexus Mods account (login required for most operations)
 
+## Installation
+
+### As a Hermes Agent Skill
+
+```bash
+# Install directly from GitHub
+hermes skills install https://raw.githubusercontent.com/chaorenex1/BGS-Nexus-automation/master/SKILL.md
+```
+
+The skill registers as `BGS-Nexus-automation` and auto-loads when Hermes Agent needs Nexus Mods browser automation.
+
+### Manual / Standalone
+
+```bash
+git clone https://github.com/chaorenex1/BGS-Nexus-automation.git
+cd BGS-Nexus-automation
+npm install
+```
+
 ## Quick Start
 
 ```bash
