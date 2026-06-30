@@ -135,8 +135,9 @@ class CDPClient {
   }
 
   async evaluate(expression) {
+    const cleanExpr = expression.replace(/\r/g, '');
     const response = await this.send('Runtime.evaluate', {
-      expression,
+      expression: cleanExpr,
       returnByValue: true
     });
     if (response?.exceptionDetails) {
@@ -155,7 +156,7 @@ class CDPClient {
     // 通过 Runtime.evaluate 执行点击
     await this.evaluate(`
       (function() {
-        const el = document.querySelector('${selector.replace(/'/g, "\\'")}');
+        var el = document.querySelector('${selector.replace(/'/g, "\\'")}');
         if (el) { el.click(); return true; }
         return false;
       })()
@@ -166,7 +167,7 @@ class CDPClient {
   async type(selector, text) {
     await this.evaluate(`
       (function() {
-        const el = document.querySelector('${selector.replace(/'/g, "\\'")}');
+        var el = document.querySelector('${selector.replace(/'/g, "\\'")}');
         if (!el) return false;
         el.focus();
         el.value = '${text.replace(/'/g, "\\'")}';
@@ -225,11 +226,13 @@ async function checkLoginState(client) {
 
   const isLoggedIn = await client.evaluate(`
     (function() {
-      const positiveSelectors = ['.user-name', '.account-menu', '[data-user-id]', '.avatar', '.user-avatar'];
-      if (positiveSelectors.some(s => document.querySelector(s))) return true;
-      const signInLink = Array.from(document.querySelectorAll('a, button')).find(el =>
-        /sign in|log in/i.test((el.textContent || '').trim())
-      );
+      var positiveSelectors = ['.user-name', '.account-menu', '[data-user-id]', '.avatar', '.user-avatar'];
+      for (var i = 0; i < positiveSelectors.length; i++) {
+        if (document.querySelector(positiveSelectors[i])) return true;
+      }
+      var signInLink = Array.from(document.querySelectorAll('a, button')).find(function(el) {
+        return /sign in|log in/i.test((el.textContent || '').trim());
+      });
       return !signInLink;
     })()
   `);
@@ -263,7 +266,7 @@ async function getTrendingMods(client, page = 1) {
     if (!titleEl) continue;
     
     var href = titleEl.getAttribute('href') || '';
-    var modIdMatch = href.match(/\\/mods\\/(\\d+)/);
+    var modIdMatch = href.match(new RegExp('mods/(\\\\d+)'));
     var modId = modIdMatch ? modIdMatch[1] : 'unknown';
     
     var name = titleEl.textContent.trim();
@@ -274,7 +277,7 @@ async function getTrendingMods(client, page = 1) {
     var thumbnail = imgEl ? imgEl.src : null;
     
     // 从文本行提取下载数、点赞数、描述和成人内容标志
-    var allText = tile.innerText.split('\n');
+    var allText = tile.innerText.split(String.fromCharCode(10));
     var endorsements = 'N/A';
     var downloads = 'N/A';
     var fileSize = 'N/A';
@@ -320,7 +323,7 @@ async function getTrendingMods(client, page = 1) {
           text !== uploadTime && text !== uploadDate && 
           text !== 'Endorsements' && text !== 'Downloads' && text !== 'File size' &&
           text !== 'Updated since last downloaded' && text !== 'Update available' &&
-          !text.match(/^\\d+$/)) {
+          !text.match(/^\d+$/)) {
         // 检查是否是描述（通常在日期之后，Endorsements 之前）
         if (j > 3 && j < allText.length - 4 && text.length > 10) {
           description = text;
@@ -398,7 +401,7 @@ async function searchMods(client, keyword, options = {}) {
     if (!titleEl) continue;
 
     var href = titleEl.getAttribute('href') || '';
-    var modIdMatch = href.match(/\\/mods\\/(\\d+)/);
+    var modIdMatch = href.match(new RegExp('mods/(\\\\d+)'));
     var modId = modIdMatch ? modIdMatch[1] : 'unknown';
 
     var name = titleEl.textContent.trim();
@@ -408,7 +411,7 @@ async function searchMods(client, keyword, options = {}) {
     var uploadDate = timeEl ? timeEl.getAttribute('datetime') : 'Unknown';
     var thumbnail = imgEl ? imgEl.src : null;
 
-    var allText = tile.innerText.split('\n');
+    var allText = tile.innerText.split(String.fromCharCode(10));
     var endorsements = 'N/A';
     var downloads = 'N/A';
     var fileSize = 'N/A';
@@ -447,7 +450,7 @@ async function searchMods(client, keyword, options = {}) {
           text !== uploadTime && text !== uploadDate &&
           text !== 'Endorsements' && text !== 'Downloads' && text !== 'File size' &&
           text !== 'Updated since last downloaded' && text !== 'Update available' &&
-          !text.match(/^\\d+$/)) {
+          !text.match(/^\d+$/)) {
         if (j > 3 && j < allText.length - 4 && text.length > 10) {
           description = text;
         }
@@ -489,7 +492,7 @@ async function getModDetails(client, modId) {
   var pageTitle = document.querySelector('h1');
   pageTitle = pageTitle ? pageTitle.textContent.trim() : 'Unknown';
   
-  var allText = document.body.innerText.split('\n');
+  var allText = document.body.innerText.split(String.fromCharCode(10));
   var version = 'Unknown';
   var uploaded = 'Unknown';
   var updated = 'Unknown';
@@ -1045,7 +1048,7 @@ async function summarizeDescription(client, modId) {
                 var link = cells[c].querySelector('a[href*="/mods/"]');
                 if (link) {
                   var modUrl = link.getAttribute('href');
-                  var modIdMatch = modUrl ? modUrl.match(/\\/mods\\/(\\d+)/) : null;
+                  var modIdMatch = modUrl ? modUrl.match(new RegExp('mods/(\\\\d+)')) : null;
                   rowData.push({
                     text: cellText,
                     modName: link.textContent.trim(),
@@ -1100,13 +1103,13 @@ async function summarizeDescription(client, modId) {
   try {
     const gameId = await client.evaluate(`
       (function() {
-        var match = window.location.href.match(/\\/games\\/(\\d+)/);
+        var match = window.location.href.match(new RegExp('/games/(\\\\d+)'));
         if (match) return match[1];
         // 尝试从页面 meta 或脚本中获取 gameId
         var scripts = document.querySelectorAll('script');
         for (var i = 0; i < scripts.length; i++) {
           var text = scripts[i].textContent;
-          var gameMatch = text.match(/gameId["\']?\\s*[:=]\\s*(\\d+)/);
+          var gameMatch = text.match(new RegExp('gameId["\\'']?\\\\s*[:=]\\\\s*(\\\\d+)'));
           if (gameMatch) return gameMatch[1];
         }
         return '1704'; // Skyrim SE default
@@ -1120,7 +1123,7 @@ async function summarizeDescription(client, modId) {
     const apiText = await client.evaluate(`
       (function() {
         var text = document.body.innerText;
-        var lines = text.split('\n').filter(l => l.trim());
+        var lines = text.split(String.fromCharCode(10)).filter(function(l) { return l.trim(); });
         var result = [];
         var inTable = false;
         for (var i = 0; i < lines.length; i++) {
@@ -1510,7 +1513,7 @@ async function searchPosts(client, modId, keyword = '', page = 1) {
         var content = '';
         var contentEl = c.querySelector('.comment-content-text');
         if (contentEl) {
-          content = contentEl.innerHTML.replace(/<br\\s*\\/?>/gi, '\\n').replace(/<[^>]+>/g, '').trim();
+          content = contentEl.innerHTML.replace(new RegExp('<br\\\\s*\\\\/?>', 'gi'), '\\n').replace(new RegExp('<[^>]+>', 'g'), '').trim();
         } else {
           var cc = c.querySelector('.comment-content');
           if (cc) {
@@ -1518,7 +1521,7 @@ async function searchPosts(client, modId, keyword = '', page = 1) {
             var le = cl.querySelector('.locked'); if (le) le.remove();
             var se = cl.querySelector('.sticky'); if (se) se.remove();
             var te = cl.querySelector('time'); if (te) te.remove();
-            content = cl.innerHTML.replace(/<br\\s*\\/?>/gi, '\\n').replace(/<[^>]+>/g, '').trim();
+            content = cl.innerHTML.replace(new RegExp('<br\\\\s*\\\\/?>', 'gi'), '\\n').replace(new RegExp('<[^>]+>', 'g'), '').trim();
           }
         }
         var kudos = '0';
@@ -1526,7 +1529,7 @@ async function searchPosts(client, modId, keyword = '', page = 1) {
         for (var li = 0; li < dLi.length; li++) {
           var lt = dLi[li].textContent.trim();
           if (lt.indexOf('kudos') !== -1 || lt.indexOf('Kudos') !== -1) {
-            var km = lt.match(/(\\d+)\\s*kudos/i);
+            var km = lt.match(new RegExp('(\\\\d+)\\\\s*kudos', 'i'));
             if (km) kudos = km[1]; break;
           }
         }
@@ -1536,7 +1539,7 @@ async function searchPosts(client, modId, keyword = '', page = 1) {
         var replies = '0';
         var rEl = c.querySelector('.replies-count, .reply-count');
         if (rEl) {
-          var rm = rEl.textContent.trim().match(/(\\d+)/);
+          var rm = rEl.textContent.trim().match(new RegExp('(\\\\d+)'));
           if (rm) replies = rm[1];
         }
         if (replies === '0') {
@@ -1573,11 +1576,11 @@ async function searchPosts(client, modId, keyword = '', page = 1) {
       var pl = document.querySelectorAll('.pagination.clearfix a, .pagination a');
       for (var p = 0; p < pl.length; p++) {
         var onclickRaw = (pl[p].getAttribute("onclick") || "");
-        var pm = onclickRaw.match(/Send\\('page',\\s*'(\\d+)'\\)/);
+        var pm = onclickRaw.match(new RegExp("Send\\\\('page',\\\\s*'(\\\\d+)'\\\\)"));
         if (pm && pagination.indexOf(pm[1]) === -1) pagination.push(pm[1]);
         if (!pm) {
           var href = pl[p].getAttribute("href") || "";
-          var hm = href.match(/[?&]page=(\\d+)/);
+          var hm = href.match(new RegExp('[?&]page=(\\\\d+)'));
           if (hm && pagination.indexOf(hm[1]) === -1) pagination.push(hm[1]);
         }
       }
@@ -1882,7 +1885,7 @@ async function postComment(client, modId, content) {
     (function() {
       var ce = document.querySelector('#add-comment-form-0 .wysibb-body');
       if (ce) {
-        ce.innerHTML = '${escapedContent.replace(/\\n/g, '<br>')}';
+        ce.innerHTML = '${escapedContent.replace(new RegExp('\\\\n', 'g'), '<br>')}';
         ce.dispatchEvent(new Event('input', { bubbles: true }));
         return true;
       }
