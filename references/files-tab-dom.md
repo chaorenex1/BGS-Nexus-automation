@@ -3,6 +3,7 @@
 > 实测日期: 2026-06-29
 > 适用页面: Nexus Mods MOD 详情页 Files TAB
 > 测试 MOD: 12604 (SkyUI)
+> ⚠️ 本文档中的 `skyrimspecialedition` 域名是实测时的游戏域。实际操作中由 `game_domain` 配置决定。
 
 ## 整体结构
 

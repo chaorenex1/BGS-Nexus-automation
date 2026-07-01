@@ -2,6 +2,7 @@
 
 > 实测日期: 2026-06-29
 > 测试页面: https://www.nexusmods.com/skyrimspecialedition/mods/12604?tab=posts, https://www.nexusmods.com/skyrimspecialedition/mods/183637?tab=bugs
+> ⚠️ 本文档中的 `skyrimspecialedition` 域名是实测时的游戏域。实际操作中由 `game_domain` 配置决定。
 
 ## Posts TAB — 评论列表
 

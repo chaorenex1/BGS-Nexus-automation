@@ -1,5 +1,7 @@
 # Nexus Mods DOM 结构参考（2025-06-29 实测）
 
+> ⚠️ 本文档中的 `skyrimspecialedition` 域名是实测时的游戏域。实际操作中由 `game_domain` 配置决定。
+
 ## 页面 URL 结构
 
 | 页面类型 | 正确 URL 格式 | 说明 |

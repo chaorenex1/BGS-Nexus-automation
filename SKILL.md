@@ -1,18 +1,18 @@
 ---
 title: BGS-Nexus-automation
 name: BGS-Nexus-automation
-version: 1.7.0
+version: 1.8.0
 category: browser-automation
 author: Hermes Agent
-description: 在 @puppeteer/browsers 创建的浏览器内像人类用户浏览 Nexus Mods 网站（Skyrim Special Edition），支持搜索、追踪、点赞、下载等完整操作流。
-summary: 在 @puppeteer/browsers 创建的浏览器内像人类用户浏览 Nexus Mods 网站（Skyrim Special Edition），支持搜索、追踪、点赞、下载等完整操作流。
+description: 浏览 Nexus Mods 网站（通过 game_domain 支持全部游戏），支持搜索、追踪、点赞、下载等完整操作流。
+summary: 浏览 Nexus Mods 网站（通过 game_domain 支持全部游戏），支持搜索、追踪、点赞、下载等完整操作流。
 ---
 
 # BGS-Nexus-automation
 
 ## 概述
 
-本技能使用 `@puppeteer/browsers` 启动真实 Chrome 浏览器，以人类行为模式浏览 [Nexus Mods](https://www.nexusmods.com/games/skyrimspecialedition) 网站。所有操作均在可见浏览器窗口中执行，保留登录态，模拟真实用户交互。
+本技能使用 `@puppeteer/browsers` 启动真实 Chrome 浏览器，以人类行为模式浏览 [Nexus Mods](https://www.nexusmods.com) 网站。支持 **Nexus Mods 全部游戏**（4,800+ 游戏库），通过 `game_domain` 参数动态切换目标游戏。所有操作均在可见浏览器窗口中执行，保留登录态，模拟真实用户交互。
 
 ## 重要限制
 
@@ -83,11 +83,74 @@ node scripts/init-browser.js
 ### 3. 用户登录提示
 
 向用户发送提示：
-> 浏览器已启动。请在打开的 Chrome 窗口中访问 https://www.nexusmods.com 并登录您的账号。登录完成后直接回复我“已登录”即可。
+> 浏览器已启动。请在打开的 Chrome 窗口中访问 https://www.nexusmods.com 并登录您的账号。登录完成后直接回复我"已登录"即可。
 
-### 4. 等待用户确认
+### 4. 登录验证 + 游戏确认
 
-用户回复确认后，继续运行 `node scripts/nexus-automation.js login-state` 或其他命令验证登录状态并执行后续操作。不要在脚本中等待 TTY 输入或要求用户按 Enter。
+**用户回复"已登录"后，按以下步骤操作：**
+
+```bash
+node scripts/nexus-automation.js login-state
+```
+
+若返回 `isLoggedIn: false`，提示用户重新登录。
+
+若返回 `isLoggedIn: true`，进入**游戏确认流程**：
+
+   a. **检查对话中是否已提及具体游戏**（如用户说"我要看 Skyrim 的 MOD"、"浏览 Fallout 4"）：
+   b. **若未提及**：询问用户 "您想浏览哪个游戏？"（例如 Skyrim Special Edition、Fallout 4、Cyberpunk 2077 等）
+   c. **若已提及**：向用户确认 "将 {游戏名称} 设为当前游戏域？"
+
+### 5. 游戏搜索验证
+
+用户回应后，使用 `game-search` 命令搜索验证：
+
+```bash
+node scripts/nexus-automation.js game-search "skyrim"
+```
+
+从返回的 `games[].domain` 中选出最匹配结果，再次向用户确认。
+
+### 6. 保存 game_domain
+
+用户确认后，保存：
+
+```bash
+node scripts/nexus-automation.js set-game skyrimspecialedition
+```
+
+至此初始化完成。**后续所有命令自动使用该 `game_domain`，无需重复询问。**
+
+> ℹ️ `set-game` 将 domain 写入 `%TEMP%/BGS-Nexus-automation/game-domain.json`，后续所有 `nexus-automation.js` 命令自动读取。
+
+## game_domain 配置
+
+`game_domain` 决定当前操作的 Nexus Mods 游戏。优先级（从高到低）：
+
+| 优先级 | 来源 | 说明 |
+|--------|------|------|
+| 1 | CLI `--game=<domain>` | 单次命令覆盖：`node nexus-automation.js --game=cyberpunk2077 trending` |
+| 2 | 环境变量 `BGS_NEXUS_GAME_DOMAIN` | 会话级设置 |
+| 3 | 状态文件 `game-domain.json` | `set-game` 持久化；位于 `%TEMP%/BGS-Nexus-automation/` |
+| 4 | 默认值 `skyrimspecialedition` | 未设置时的回退值 |
+
+**管理命令**：
+
+```bash
+# 搜索游戏（验证域名是否存在）
+node nexus-automation.js game-search "cyberpunk 2077"
+
+# 设置当前游戏域（持久化）
+node nexus-automation.js set-game cyberpunk2077
+
+# 查看当前 game_domain
+node nexus-automation.js get-game
+
+# 单次覆盖（不持久化）
+node nexus-automation.js --game=fallout4 trending
+```
+
+> 本文档中 `{game_domain}` 表示由上述优先级链决定的当前游戏域。示例中的 `skyrimspecialedition` 均为示例值。
 
 ## 工作目录
 
@@ -99,7 +162,7 @@ node scripts/init-browser.js
 
 ### 功能1：获取 Trending Mods（7 days）
 
-**目标**: 获取 Skyrim Special Edition 7 天 Trending Mods 列表，支持翻页和完整字段。
+**目标**: 获取当前游戏的 7 天 Trending Mods 列表，支持翻页和完整字段。
 
 **正确的 URL 格式**:
 ```
@@ -107,12 +170,12 @@ https://www.nexusmods.com/games/{game_domain}/mods?sort=endorsements&timeRange=7
 ```
 
 ⚠️ **URL 格式陷阱**：Nexus Mods 使用两种 URL 结构：
-- 游戏首页：`https://www.nexusmods.com/games/skyrimspecialedition`（带 `/games/` 前缀）
-- MOD 列表页：`https://www.nexusmods.com/games/skyrimspecialedition/mods`（带 `/games/` 前缀）
-- 错误的格式：`https://www.nexusmods.com/skyrimspecialedition/mods`（不带 `/games/` 前缀）会被重定向到具体 MOD 页或首页
+- 游戏首页：`https://www.nexusmods.com/games/{game_domain}`（带 `/games/` 前缀）
+- MOD 列表页：`https://www.nexusmods.com/games/{game_domain}/mods`（带 `/games/` 前缀）
+- 错误的格式：`https://www.nexusmods.com/{game_domain}/mods`（不带 `/games/` 前缀）会被重定向到具体 MOD 页或首页
 
 **步骤**:
-1. 浏览器访问 `https://www.nexusmods.com/games/skyrimspecialedition/mods?sort=endorsements&timeRange=7&page={page}`
+1. 浏览器访问 `https://www.nexusmods.com/games/{game_domain}/mods?sort=endorsements&timeRange=7&page={page}`
 2. 等待 5 秒让 Next.js 客户端渲染完成
 3. 通过 `document.querySelector('.mods-grid')` 定位 MOD 列表容器
 4. 遍历子元素提取 MOD 数据（使用 `data-e2eid` 属性定位标题和作者）
@@ -176,11 +239,11 @@ https://www.nexusmods.com/games/{game_domain}/mods?sort=endorsements&timeRange=7
 
 ### 功能2：搜索 MOD
 
-**目标**: 使用 Nexus Mods URL 参数直接搜索 Skyrim Special Edition 的 MOD。
+**目标**: 使用 Nexus Mods URL 参数直接搜索当前游戏的 MOD。
 
 **实现方式**: Nexus Mods 搜索通过 URL 参数直接实现，无需通过搜索框交互：
 ```
-https://www.nexusmods.com/games/skyrimspecialedition/mods?keyword={keyword}&{options}
+https://www.nexusmods.com/games/{game_domain}/mods?keyword={keyword}&{options}
 ```
 
 **步骤**:
@@ -223,7 +286,7 @@ node nexus-automation.js search skyui categoryName=Gameplay tag=Polish adultCont
 **目标**: 根据 MOD ID 进入详情页，提取关键信息，包括下载状态。
 
 **步骤**:
-1. 访问 `https://www.nexusmods.com/skyrimspecialedition/mods/{mod_id}`
+1. 访问 `https://www.nexusmods.com/games/{game_domain}/mods/{mod_id}`
 2. 提取 `pageTitle`（MOD 标题）
 3. 提取 `fileInfo` 区域信息（版本、上传时间、更新日期等）
 4. 提取下载状态（是否已下载、上次下载时间）
@@ -348,7 +411,7 @@ node nexus-automation.js tags-gallery 183263
 **Tags DOM 结构**（实测 2025-06-29）：
 - 容器: `ul.tags`
 - 每个标签: `ul.tags li a` 内含 `.flex-label` 文本和 `href` 链接
-- 链接格式: `/games/skyrimspecialedition/mods/?tags_yes[]={id}&tag={name}`
+- 链接格式: `/games/{game_domain}/mods/?tags_yes[]={id}&tag={name}`
 
 **Gallery DOM 结构**（实测 2025-06-29）：
 - 容器: `ul.thumbgallery.gallery.clearfix`
@@ -829,7 +892,7 @@ node nexus-automation.js download 183263 "SkyUI" "6.11" modmanager
 
 **正确的 URL**:
 ```
-https://www.nexusmods.com/skyrimspecialedition/mods/trackingcentre?tab=mods
+https://www.nexusmods.com/games/{game_domain}/mods/trackingcentre?tab=mods
 ```
 
 ⚠️ 路径是 `/mods/trackingcentre`，不是 `/users/trackingcentre`。

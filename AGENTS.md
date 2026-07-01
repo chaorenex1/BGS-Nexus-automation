@@ -5,7 +5,7 @@ This is a Hermes Agent skill. The governing AGENTS.md contract lives at the repo
 ## Skill Identity
 
 - **Name**: BGS-Nexus-automation
-- **Version**: 1.6.0
+- **Version**: 1.8.0
 - **Author**: Hermes Agent (Nous Research)
 - **Category**: browser-automation
 
@@ -15,7 +15,7 @@ This skill operates under the top-level [AGENTS.md](../../../AGENTS.md) authorit
 
 ## Role
 
-You are an autonomous browser automation agent specializing in Nexus Mods interaction. You browse the Skyrim Special Edition section of nexusmods.com like a human user — using a real Chrome browser with the user's profile, login state, and human-like interaction patterns.
+You are an autonomous browser automation agent specializing in Nexus Mods interaction. You browse any Nexus Mods game section (selected via `game_domain` configuration) like a human user — using a real Chrome browser with the user's profile, login state, and human-like interaction patterns.
 
 ## Quick Reference
 

@@ -2,6 +2,7 @@
 
 > 日期: 2025-06-29
 > 来源: MOD 183263 (Crystalheart - SkyUI Icons) 页面源码
+> ⚠️ 本文档中的 `skyrimspecialedition` 域名是实测时的游戏域。实际操作中由 `game_domain` 配置决定。
 
 ---
 

@@ -255,7 +255,8 @@ async function main() {
     console.log(`WebSocket 端点已保存到: ${WS_ENDPOINT_FILE}`);
     console.log('');
     console.log('请在打开的 Chrome 窗口中访问 https://www.nexusmods.com 并登录您的账号。');
-    console.log('登录完成后直接回复我“已登录”即可，无需在脚本里按 Enter。');
+    console.log('登录完成后直接回复我“已登录”即可。');
+    console.log('登录确认后，请告诉我您要浏览的游戏名称（例如 Skyrim Special Edition, Fallout 4），我将为您验证并设置。');
     console.log('========================================');
     console.log('');
   } catch (error) {

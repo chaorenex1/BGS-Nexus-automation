@@ -8,10 +8,42 @@ const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
 
+/**
+ * 读取 game_domain，优先级: CLI arg (--game=xxx) > env BGS_NEXUS_GAME_DOMAIN > state file > 默认值
+ */
+function resolveGameDomain() {
+  // 1. --game=<domain> CLI flag
+  var cliGame = null;
+  for (var a = 2; a < process.argv.length; a++) {
+    var match = process.argv[a].match(/^--game=(.+)$/);
+    if (match) { cliGame = match[1]; break; }
+  }
+  if (cliGame) return cliGame;
+
+  // 2. BGS_NEXUS_GAME_DOMAIN env var
+  if (process.env.BGS_NEXUS_GAME_DOMAIN) return process.env.BGS_NEXUS_GAME_DOMAIN;
+
+  // 3. State file
+  try {
+    var stateFile = path.join(process.env.TEMP || '/tmp', 'BGS-Nexus-automation', 'game-domain.json');
+    if (fs.existsSync(stateFile)) {
+      var state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+      if (state.game_domain) return state.game_domain;
+    }
+  } catch (e) { /* ignore */ }
+
+  // 4. Default
+  return 'skyrimspecialedition';
+}
+
+const TEMP_DIR = path.join(process.env.TEMP || '/tmp', 'BGS-Nexus-automation');
+
 const CONFIG = {
   NEXUS_BASE_URL: 'https://www.nexusmods.com',
-  GAME_DOMAIN: 'skyrimspecialedition',
+  GAME_DOMAIN: resolveGameDomain(),
   WS_ENDPOINT_FILE: path.join(process.env.TEMP || '/tmp', 'BGS-Nexus-automation', 'ws-endpoint.txt'),
+  STATE_DIR: TEMP_DIR,
+  GAME_DOMAIN_FILE: path.join(TEMP_DIR, 'game-domain.json'),
   DEBUG_PORT: process.env.BGS_NEXUS_DEBUG_PORT || '9222',
   DEFAULT_VIEWPORT: { width: 1920, height: 1080 }
 };
@@ -135,9 +167,10 @@ class CDPClient {
   }
 
   async evaluate(expression) {
-    const cleanExpr = expression.replace(/\r/g, '');
+    // Remove CR chars via String.fromCharCode — avoids source-level \r corruption
+    const sanitized = expression.replace(new RegExp(String.fromCharCode(13), 'g'), '');
     const response = await this.send('Runtime.evaluate', {
-      expression: cleanExpr,
+      expression: sanitized,
       returnByValue: true
     });
     if (response?.exceptionDetails) {
@@ -2515,13 +2548,110 @@ async function getMO2ApiKeys(client) {
   );
 }
 
+async function searchGame(client, keyword) {
+  if (!keyword || typeof keyword !== 'string' || keyword.trim().length === 0) {
+    return { error: '请提供游戏搜索关键词' };
+  }
+
+  const encodedKeyword = encodeURIComponent(keyword.trim());
+  const searchUrl = `${CONFIG.NEXUS_BASE_URL}/games?keyword=${encodedKeyword}`;
+  await client.navigate(searchUrl);
+  await delay(8000); // Next.js RSC hydration 需要较长时间
+
+  const expr = `
+(function() {
+  var titles = document.querySelectorAll('[data-e2eid="game-tile-title"]');
+  var games = [];
+  for (var i = 0; i < titles.length; i++) {
+    var a = titles[i];
+    var name = a.innerText.trim();
+    var href = a.href;
+
+    // 从 URL 提取 domain
+    var domain = '';
+    var parts = href.split('/games/');
+    if (parts.length > 1) domain = parts[1];
+
+    // 根据 alt 属性查找封面图 — 在 tile 卡片容器中查找
+    var container = a.parentElement;
+    var img = null;
+    for (var depth = 0; depth < 5 && !img; depth++) {
+      img = container.querySelector('img');
+      if (!img) container = container.parentElement;
+    }
+    var image = img ? img.src : '';
+
+    // 从封面图 URL 提取 game_id
+    var gameId = '';
+    if (image) {
+      var segments = image.split('/');
+      for (var j = 0; j < segments.length; j++) {
+        if (segments[j] === 'v2' && j + 1 < segments.length) {
+          gameId = segments[j + 1];
+          break;
+        }
+      }
+    }
+
+    games.push({
+      name: name,
+      domain: domain,
+      game_id: gameId,
+      url: href,
+      image: image
+    });
+  }
+
+  // 提取搜索结果总数文本
+  var bodyText = document.body.innerText;
+  var countMatch = bodyText.match(/(\\d+)\\s+results?/);
+  var totalResults = countMatch ? parseInt(countMatch[1]) : games.length;
+
+  return {
+    keyword: new URLSearchParams(window.location.search).get('keyword') || '',
+    totalResults: totalResults,
+    returnedCount: games.length,
+    url: window.location.href,
+    games: games
+  };
+})()
+  `.trim();
+
+  const result = await client.evaluate(expr);
+  return result || { error: '搜索失败', keyword, games: [] };
+}
+
+/**
+ * 保存 game_domain 到状态文件，后续所有命令自动使用。
+ */
+function setGameDomain(domain) {
+  if (!domain || typeof domain !== 'string') {
+    throw new Error('domain 必须是非空字符串');
+  }
+  if (!fs.existsSync(CONFIG.STATE_DIR)) {
+    fs.mkdirSync(CONFIG.STATE_DIR, { recursive: true });
+  }
+  // 原子写入：先写临时文件，再重命名
+  var tmpFile = CONFIG.GAME_DOMAIN_FILE + '.tmp';
+  fs.writeFileSync(tmpFile, JSON.stringify({ game_domain: domain.trim() }), 'utf8');
+  fs.renameSync(tmpFile, CONFIG.GAME_DOMAIN_FILE);
+  return { saved: true, game_domain: domain.trim(), file: CONFIG.GAME_DOMAIN_FILE };
+}
+
+/**
+ * 读取当前 game_domain（无 CLI/env 时从 state 文件读取）
+ */
+function getGameDomain() {
+  return CONFIG.GAME_DOMAIN;
+}
+
 async function main() {
   const command = process.argv[2];
   const args = process.argv.slice(3);
 
   if (!command) {
     console.log('Usage: node nexus-automation.js <command> [args]');
-    console.log('Commands: login-state, trending, search, details, track, endorse, vote, tags, gallery, description, files, posts, bugs, bug-comments, post, download <modId> <fileName> <version> [downloadType], tracking [action] [query] [page], history [query] [page] [action], api-keys');
+    console.log('Commands: login-state, trending, search, details, track, endorse, vote, tags, gallery, description, files, posts, bugs, bug-comments, post, download <modId> <fileName> <version> [downloadType], tracking [action] [query] [page], history [query] [page] [action], api-keys, game-search <keyword>, set-game <domain>, get-game');
     process.exit(1);
   }
 
@@ -2575,6 +2705,9 @@ async function main() {
       case 'tracking': result = await accessTrackingCentre(client, args[0], args[1], args[2]); break;
       case 'history': result = await accessDownloadHistory(client, args[0], args[1], args[2]); break;
       case 'api-keys': result = await getMO2ApiKeys(client); break;
+      case 'game-search': result = await searchGame(client, args[0]); break;
+      case 'set-game': result = setGameDomain(args[0]); break;
+      case 'get-game': result = { game_domain: getGameDomain() }; break;
       default:
         console.log(JSON.stringify({ error: `未知命令: ${command}` }));
         return;
@@ -2615,5 +2748,8 @@ module.exports = {
   postComment,
   accessTrackingCentre,
   accessDownloadHistory,
-  getMO2ApiKeys
+  getMO2ApiKeys,
+  searchGame,
+  setGameDomain,
+  getGameDomain
 };

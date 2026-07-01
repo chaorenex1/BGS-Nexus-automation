@@ -1,6 +1,7 @@
 # Tracking Centre & Download History DOM Reference
 
 实测日期: 2026-06-29
+> ⚠️ 本文档中的 `skyrimspecialedition` 域名是实测时的游戏域。实际操作中由 `game_domain` 配置决定。
 
 ## 功能11: Tracking Centre
 
